@@ -4,19 +4,18 @@ import random as python_random
 import numpy as np
 import emoji
 import argparse
-from transformers import TFAutoModelForSequenceClassification
-from transformers import AutoTokenizer
+from transformers import TFAutoModelForSequenceClassification, AutoTokenizer
 from tensorflow.keras.losses import BinaryCrossentropy, CategoricalCrossentropy
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score,  classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import LabelEncoder, LabelBinarizer
 from tensorflow.keras.optimizers import Adam
 import tensorflow
-from collections import Counter
 import re
-import warnings
 from pathlib import Path as path
-import matplotlib.pyplot as plt
+# from collections import Counter
+import warnings
+# import matplotlib.pyplot as plt
 
 
 RANDOM_STATE = 1234
@@ -37,15 +36,39 @@ def create_arg_parser():
                         help="Dataset to train the model with, default is the SemEval 2022 sexism dataset")
     parser.add_argument("-t", "--test_file", type=str,
                         help="Test file, which will be used to evaluate the model")
-    # Task B
-    parser.add_argument("--task_b", action="store_true",
-                        help="Run the model for task B, using the extra EXIST dataset")
+    parser.add_argument("-tn", "--test_name", default="no_name", type=str,
+                        help="Test file name, which will be used to store multiple test files.")
+
+    # Easy-to-learn data
+    parser.add_argument("--easy", action="store_true",
+                        help="Run the model using easy-to-learn data.")
+    parser.add_argument("-d3", "--data_file3", default="data/train.tsv", type=str,
+                        help="Easy-to-learn train data from data cartography")
+    parser.add_argument("-d4", "--data_file4", default="data/dev.tsv", type=str,
+                        help="Easy-to-learn dev data from data cartography")
+
+    # Semeval data only
+    parser.add_argument("--semeval", action="store_true",
+                        help="Run the model for task A, using the semeval dataset.")
+
+    # Padding max length
+    parser.add_argument("--max_len", action="store_true",
+                        help="Run the model using max padding length based on input.")
+
+    # Task A
     parser.add_argument("-d2", "--data_file2", default="data/EXIST2021_merged.csv", type=str,
                         help="Extra dataset to train the model with, has to have compatible labels with "
                              "the first dataset")
     parser.add_argument("-m", "--mode", default="concat", type=str,
                         help="This argument sets the data merge option, you can choose between concatenating (concat) "
                              "or shuffling (shuffle), default is concat")
+    parser.add_argument("--gab_only", action="store_true",
+                        help="Run the model using only gab added data.")
+
+    # Task B
+    parser.add_argument("--task_b", action="store_true",
+                        help="Run the model for task B, using the extra EXIST dataset")
+
     # Model arguments
     parser.add_argument("-tf", "--transformer", default="GroNLP/hateBERT", type=str,
                         help="this argument takes the pretrained language model link from HuggingFace, "
@@ -59,6 +82,9 @@ def create_arg_parser():
                         help="Set a custom maximum sequence length for the pretrained language model, default is 100")
     parser.add_argument("-epoch", "--epochs", default=1, type=int,
                         help="This argument selects the amount of epochs to run the model with, default is 1 epoch")
+    parser.add_argument("--no_weight_restore", action="store_false",
+                        help="Run the model without weight restore")
+
     # Save model
     parser.add_argument("--save_model", type=str,
                         help="Save the current model to a file for later use on a test file, "
@@ -68,7 +94,7 @@ def create_arg_parser():
     return args
 
 
-def read_data(d1, task_b, d2 = None):
+def read_data(d1, task_b, d2=None, gab_only=False):
     '''Reading in the dataset and returning it as pandas dataframes
     with only the text and label.'''
     # read in data to pandas
@@ -92,6 +118,9 @@ def read_data(d1, task_b, d2 = None):
     else:
         # read in data to pandas
         df2 = pd.read_csv(d2)
+
+        if gab_only:
+            df2 = df2[df2['source'] == 'gab']
 
         # drop columns we don't use
         df1 = df1.drop(columns=['rewire_id', 'label_category', 'label_vector'])
@@ -119,11 +148,11 @@ def preprocess(text):
     return documents
 
 
-def train_transformer(lm, epoch, bs, lr, sl, X_train, Y_train, X_dev, Y_dev, task_b):
+def train_transformer(lm, epoch, bs, lr, sl_train, sl_dev, X_train, Y_train, X_dev, Y_dev, nws, task_b):
     """This function takes as input the train file, dev file, transformer model name, and parameters.
     It trains the model with the specified parameters and returns the trained model."""
-    print("Training model: {}\nWith parameters:\nLearn rate: {}, Batch size: {}\nEpochs: {}, Sequence length: {}"
-          .format(lm, lr, bs, epoch, sl))
+    print("\n\nTraining model: {}\nWith parameters:\nLearn rate: {}, Batch size: {}\nEpochs: {}, Sequence length (train; dev): {}; {}\n\n"
+          .format(lm, lr, bs, epoch, sl_train, sl_dev))
     pt_state = False
 
     if lm == "GroNLP/hateBERT":
@@ -137,9 +166,9 @@ def train_transformer(lm, epoch, bs, lr, sl, X_train, Y_train, X_dev, Y_dev, tas
     model = TFAutoModelForSequenceClassification.from_pretrained(lm, num_labels=num_labels, from_pt=pt_state)
 
     # Tokenzing the train and dev texts
-    tokens_train = tokenizer(X_train, padding=True, max_length=sl,
+    tokens_train = tokenizer(X_train, padding=True, max_length=sl_train,
                              truncation=True, return_tensors="np").data
-    tokens_dev = tokenizer(X_dev, padding=True, max_length=sl,
+    tokens_dev = tokenizer(X_dev, padding=True, max_length=sl_dev,
                            truncation=True, return_tensors="np").data
 
     # Setting the loss function for binary task and optimization function
@@ -151,7 +180,7 @@ def train_transformer(lm, epoch, bs, lr, sl, X_train, Y_train, X_dev, Y_dev, tas
     optim = Adam(learning_rate=lr)
 
     # Early stopping
-    early_stopper = tensorflow.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True,
+    early_stopper = tensorflow.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=nws,
                                                              mode="auto")
     if task_b:
         # Encoding the labels with sklearns LabelBinazrizer
@@ -175,23 +204,23 @@ def train_transformer(lm, epoch, bs, lr, sl, X_train, Y_train, X_dev, Y_dev, tas
     return model
 
 
-def confmatrix_display(gold, pred, task_b):
-    # plt.rcParams.update({'font size': 12})
-    plt.figure(dpi=1200)
+# def confmatrix_display(gold, pred, task_b):
+#     # plt.rcParams.update({'font size': 12})
+#     plt.figure(dpi=1200)
 
-    cm_display = ConfusionMatrixDisplay(confusion_matrix(gold, pred))
-    cm_display.plot()
-    plt.show()
+#     cm_display = ConfusionMatrixDisplay(confusion_matrix(gold, pred))
+#     cm_display.plot()
+#     plt.show()
 
-    if task_b:
-        plt.xticks(rotation=45, ha='right')
+#     if task_b:
+#         plt.xticks(rotation=45, ha='right')
 
 
 def test_transformer(lm, epoch, bs, lr, sl, model, X_test, Y_test, ident, task_b):
     """This function takes as input the trained transformer model, name of the model, parameters, and the test files,
     and predicts the labels for the test set and returns the accuracy score with a summarization of the model."""
     print(
-        "Testing model: {} on {} set\nWith parameters:\nLearn rate: {}, Batch size: {}\nEpochs: {}, Sequence length: {}"
+        "\n\nTesting model: {} on {} set\nWith parameters:\nLearn rate: {}, Batch size: {}\nEpochs: {}, Sequence length: {}\n\n"
         .format(lm, ident, lr, bs, epoch, sl))
 
     # Selecting the correct tokenizer for the model, and applying it to the test set
@@ -262,12 +291,15 @@ def test_transformer(lm, epoch, bs, lr, sl, model, X_test, Y_test, ident, task_b
                 gold.append('sexist')
 
     # Printing classification report (rounding on 3 decimals)
+    print("")
     print("Classification Report on {} set:\n{}".format(ident, classification_report(gold, pred, digits=3)))
-    confmatrix_display(gold, pred, task_b)
-    return gold, pred
+    # confmatrix_display(gold, pred, task_b)
+    print("")
+    print(confusion_matrix(gold, pred))
+    # return gold, pred
 
 
-def predict(lm, sl, model, df_test, task_b):
+def predict(lm, sl, model, df_test, task_b, test_name):
     """This function takes as input an unseen test file without labels, and predict the labels and returns the
     predicted labels as a .csv file in the correct Codalab format."""
     # pre-processing text
@@ -315,7 +347,7 @@ def predict(lm, sl, model, df_test, task_b):
     results = pd.DataFrame()
     results['rewire_id'] = df_test['rewire_id']
     results['label_pred'] = pred
-    results.to_csv(f"EXAMPLE_SUBMISSION_dev_{task_name}.csv", index=False)
+    results.to_csv(f"{test_name}-EXAMPLE_SUBMISSION_dev_{task_name}.csv", index=False)
 
 
 def main():
@@ -328,10 +360,13 @@ def main():
     bs = args.batch_size
     sl = args.sequence_length
     ep = args.epochs
+    nws = args.no_weight_restore
+
+    test_name = args.test_name
 
     # Reading data
     if args.task_b:
-        data = read_data(args.data_file1, args.task_b)
+        data = read_data(args.data_file1, args.task_b, gab_only=args.gab_only)
         df_train, df_dev = train_test_split(data, test_size=0.2, random_state=RANDOM_STATE)
 
         X_train = preprocess(df_train['text'].tolist())
@@ -340,25 +375,51 @@ def main():
         X_dev = preprocess(df_dev['text'].tolist())
         Y_dev = df_dev['label'].tolist()
 
+    elif args.semeval:
+        if args.easy:
+            df_train = pd.read_csv(args.data_file3, sep='\t')
+            df_dev = pd.read_csv(args.data_file4, sep='\t')
+        else:
+            data, d2 = read_data(args.data_file1, args.task_b, args.data_file2, args.gab_only)
+            df_train, df_dev = train_test_split(data, test_size=0.2, random_state=RANDOM_STATE)
+
+        X_train = preprocess(df_train['text'].tolist())
+        Y_train = df_train['label'].tolist()
+
+        X_dev = preprocess(df_dev['text'].tolist())
+        Y_dev = df_dev['label'].tolist()
+
     else:
-        ori, d2 = read_data(args.data_file1, args.task_b, args.data_file2)
-        ori_train, ori_dev = train_test_split(ori, test_size=0.2, random_state=RANDOM_STATE)
+        if args.easy:
+            print('Easy-to-learn should have been trained with shuffle.')
+            df_train = pd.read_csv(args.data_file3, sep='\t')
+            df_dev = pd.read_csv(args.data_file4, sep='\t')
 
-        X_dev = preprocess(ori_dev['text'].tolist())
-        Y_dev = ori_dev['label'].tolist()
+            X_dev = preprocess(df_dev['text'].to_list())
+            Y_dev = df_dev['label'].to_list()
 
-        # Concat two datasets, with 80% of original and 100% of Exist2021
-        ori_concat = pd.concat([ori_train, d2], axis=0)
-        ori_concat_shuffled = ori_concat.sample(frac=1)
+            X_train = preprocess(df_train['text'].to_list())
+            Y_train = df_train['label'].to_list()
 
-        # Checking if datasets are concatenated or shuffled
-        if args.mode == "concat":
-            X_train = preprocess(ori_concat['text'].tolist())
-            Y_train = ori_concat['label'].tolist()
+        else:
+            ori, d2 = read_data(args.data_file1, args.task_b, args.data_file2, args.gab_only)
+            ori_train, ori_dev = train_test_split(ori, test_size=0.2, random_state=RANDOM_STATE)
 
-        elif args.mode == "shuffle":
-            X_train = preprocess(ori_concat_shuffled['text'].tolist())
-            Y_train = ori_concat_shuffled['label'].tolist()
+            X_dev = preprocess(ori_dev['text'].tolist())
+            Y_dev = ori_dev['label'].tolist()
+
+            # Concat two datasets, with 80% of original and 100% of Exist2021
+            ori_concat = pd.concat([ori_train, d2], axis=0)
+            ori_concat_shuffled = ori_concat.sample(frac=1)
+
+            # Checking if datasets are concatenated or shuffled
+            if args.mode == "concat":
+                X_train = preprocess(ori_concat['text'].tolist())
+                Y_train = ori_concat['label'].tolist()
+
+            elif args.mode == "shuffle":
+                X_train = preprocess(ori_concat_shuffled['text'].tolist())
+                Y_train = ori_concat_shuffled['label'].tolist()
 
     model_name = args.transformer.split("/")[-1]
 
@@ -367,8 +428,15 @@ def main():
     else:
         print(f'Running {model_name} for task A')
 
-    model = train_transformer(args.transformer, ep, bs, lr, sl, X_train, Y_train, X_dev, Y_dev, args.task_b)
-    test_transformer(args.transformer, ep, bs, lr, sl, model, X_dev, Y_dev, "dev", args.task_b)
+    if args.max_len:
+        sl_train = len(max(X_train))
+        sl_dev = len(max(X_dev))
+    else:
+        sl_train = sl
+        sl_dev = sl
+
+    model = train_transformer(args.transformer, ep, bs, lr, sl_train, sl_dev, X_train, Y_train, X_dev, Y_dev, nws, args.task_b)
+    test_transformer(args.transformer, ep, bs, lr, sl_dev, model, X_dev, Y_dev, "dev", args.task_b)
 
     if args.save_model:
         # Save the model in ./saved_models
@@ -378,7 +446,11 @@ def main():
     if args.test_file:
         # Reading in unlabeled test set
         df_test = pd.read_csv(args.test_file)
-        predict(args.transformer, sl, model, df_test, args.task_b)
+
+        if args.max_len:
+            sl = df_test.text.str.len().max()
+
+        predict(args.transformer, sl, model, df_test, args.task_b, test_name)
 
 
 if __name__ == '__main__':
