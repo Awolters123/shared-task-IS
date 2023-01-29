@@ -67,7 +67,7 @@ def create_arg_parser():
 
     # Task B
     parser.add_argument("--task_b", action="store_true",
-                        help="Run the model for task B, using the extra EXIST dataset")
+                        help="Run the model for task B")
 
     # Model arguments
     parser.add_argument("-tf", "--transformer", default="GroNLP/hateBERT", type=str,
@@ -101,19 +101,35 @@ def read_data(d1, task_b, d2=None, gab_only=False):
     df1 = pd.read_csv(d1)
 
     if task_b:
+        # remove non-sexist instances, as these are only relevant for task A
+        df1 = df1[df1['label_sexist'] == 'sexist']
         # drop columns we don't use
         df1 = df1.drop(columns=['rewire_id', 'label_sexist', 'label_vector'])
 
-        # convert labels to numerical value (non sexist = 0, sexist = 1 )
-        df1.loc[df1.label_category == 'none', 'label_category'] = 0
-        df1.loc[df1.label_category == '1. threats, plans to harm and incitement', 'label_category'] = 1
-        df1.loc[df1.label_category == '2. derogation', 'label_category'] = 2
-        df1.loc[df1.label_category == '3. animosity', 'label_category'] = 3
-        df1.loc[df1.label_category == '4. prejudiced discussions', 'label_category'] = 4
+        df1.loc[df1.label_category == '1. threats, plans to harm and incitement', 'label_category'] = 0
+        df1.loc[df1.label_category == '2. derogation', 'label_category'] = 1
+        df1.loc[df1.label_category == '3. animosity', 'label_category'] = 2
+        df1.loc[df1.label_category == '4. prejudiced discussions', 'label_category'] = 3
 
         # converting column names
         df1.columns = ['text', 'label']
-        return df1
+
+        if d2:
+            df2 = pd.read_csv(d2)
+
+            df2 = df2[df2['sexist'] == 1]
+            df2.loc[df2.label_category == '1. threats, plans to harm and incitement', 'label_category'] = 0
+            df2.loc[df2.label_category == '2. derogation', 'label_category'] = 1
+            df2.loc[df2.label_category == '3. animosity', 'label_category'] = 2
+            df2.loc[df2.label_category == '4. prejudiced discussions', 'label_category'] = 3
+
+            df2 = df2.drop(columns=['test_case', 'id', 'source', 'language', 'sexist', 'Unnamed: 0'])
+
+            df2.columns = ['text', 'exist_label', 'label']
+
+            return df1, df2
+        else:
+            return df1
 
     else:
         # read in data to pandas
@@ -162,7 +178,7 @@ def train_transformer(lm, epoch, bs, lr, sl_train, sl_dev, X_train, Y_train, X_d
 
     num_labels = 1
     if task_b:
-        num_labels = 5
+        num_labels = 4
     model = TFAutoModelForSequenceClassification.from_pretrained(lm, num_labels=num_labels, from_pt=pt_state)
 
     # Tokenzing the train and dev texts
@@ -249,27 +265,23 @@ def test_transformer(lm, epoch, bs, lr, sl, model, X_test, Y_test, ident, task_b
         pred = []
         for n in np.argmax(prob, axis=1):
             if n == 0:
-                pred.append('none')
-            elif n == 1:
                 pred.append('1. threats, plans to harm and incitement')
-            elif n == 2:
+            elif n == 1:
                 pred.append('2. derogation')
-            elif n == 3:
+            elif n == 2:
                 pred.append('3. animosity')
-            elif n == 4:
+            elif n == 3:
                 pred.append('4. prejudiced discussions')
 
         gold = []
         for n in np.argmax(Y_test_bin, axis=1):
             if n == 0:
-                gold.append('none')
-            elif n == 1:
                 gold.append('1. threats, plans to harm and incitement')
-            elif n == 2:
+            elif n == 1:
                 gold.append('2. derogation')
-            elif n == 3:
+            elif n == 2:
                 gold.append('3. animosity')
-            elif n == 4:
+            elif n == 3:
                 gold.append('4. prejudiced discussions')
 
     else:
@@ -319,14 +331,12 @@ def predict(lm, sl, model, df_test, task_b, test_name):
         pred = []
         for n in np.argmax(prob, axis=1):
             if n == 0:
-                pred.append('none')
-            elif n == 1:
                 pred.append('1. threats, plans to harm and incitement')
-            elif n == 2:
+            elif n == 1:
                 pred.append('2. derogation')
-            elif n == 3:
+            elif n == 2:
                 pred.append('3. animosity')
-            elif n == 4:
+            elif n == 3:
                 pred.append('4. prejudiced discussions')
 
         task_name = "task_b"
@@ -366,14 +376,35 @@ def main():
 
     # Reading data
     if args.task_b:
-        data = read_data(args.data_file1, args.task_b, gab_only=args.gab_only)
-        df_train, df_dev = train_test_split(data, test_size=0.2, random_state=RANDOM_STATE)
+        if args.semeval:
+            data = read_data(args.data_file1, args.task_b, gab_only=args.gab_only)
+            df_train, df_dev = train_test_split(data, test_size=0.2, random_state=RANDOM_STATE)
 
-        X_train = preprocess(df_train['text'].tolist())
-        Y_train = df_train['label'].tolist()
+            X_train = preprocess(df_train['text'].tolist())
+            Y_train = df_train['label'].tolist()
 
-        X_dev = preprocess(df_dev['text'].tolist())
-        Y_dev = df_dev['label'].tolist()
+            X_dev = preprocess(df_dev['text'].tolist())
+            Y_dev = df_dev['label'].tolist()
+
+        else:
+            ori, d2 = read_data(args.data_file1, args.task_b, args.data_file2, args.gab_only)
+            ori_train, ori_dev = train_test_split(ori, test_size=0.2, random_state=RANDOM_STATE)
+
+            X_dev = preprocess(ori_dev['text'].tolist())
+            Y_dev = ori_dev['label'].tolist()
+
+            # Concat two datasets, with 80% of original and 100% of Exist2021
+            ori_concat = pd.concat([ori_train, d2], axis=0)
+            ori_concat_shuffled = ori_concat.sample(frac=1)
+
+            # Checking if datasets are concatenated or shuffled
+            if args.mode == "concat":
+                X_train = preprocess(ori_concat['text'].tolist())
+                Y_train = ori_concat['label'].tolist()
+
+            elif args.mode == "shuffle":
+                X_train = preprocess(ori_concat_shuffled['text'].tolist())
+                Y_train = ori_concat_shuffled['label'].tolist()
 
     elif args.semeval:
         if args.easy:
