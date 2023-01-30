@@ -377,8 +377,12 @@ def main():
     # Reading data
     if args.task_b:
         if args.semeval:
-            data = read_data(args.data_file1, args.task_b, gab_only=args.gab_only)
-            df_train, df_dev = train_test_split(data, test_size=0.2, random_state=RANDOM_STATE)
+            if args.easy:
+                df_train = pd.read_csv(args.data_file3, sep='\t')
+                df_dev = pd.read_csv(args.data_file4, sep='\t')
+            else:
+                data = read_data(args.data_file1, args.task_b, gab_only=args.gab_only)
+                df_train, df_dev = train_test_split(data, test_size=0.2, random_state=RANDOM_STATE)
 
             X_train = preprocess(df_train['text'].tolist())
             Y_train = df_train['label'].tolist()
@@ -387,24 +391,35 @@ def main():
             Y_dev = df_dev['label'].tolist()
 
         else:
-            ori, d2 = read_data(args.data_file1, args.task_b, args.data_file2, args.gab_only)
-            ori_train, ori_dev = train_test_split(ori, test_size=0.2, random_state=RANDOM_STATE)
+            if args.easy:
+                df_train = pd.read_csv(args.data_file3, sep='\t')
+                df_dev = pd.read_csv(args.data_file4, sep='\t')
 
-            X_dev = preprocess(ori_dev['text'].tolist())
-            Y_dev = ori_dev['label'].tolist()
+                X_dev = preprocess(df_dev['text'].to_list())
+                Y_dev = df_dev['label'].to_list()
 
-            # Concat two datasets, with 80% of original and 100% of Exist2021
-            ori_concat = pd.concat([ori_train, d2], axis=0)
-            ori_concat_shuffled = ori_concat.sample(frac=1)
+                X_train = preprocess(df_train['text'].to_list())
+                Y_train = df_train['label'].to_list()
 
-            # Checking if datasets are concatenated or shuffled
-            if args.mode == "concat":
-                X_train = preprocess(ori_concat['text'].tolist())
-                Y_train = ori_concat['label'].tolist()
+            else:
+                ori, d2 = read_data(args.data_file1, args.task_b, args.data_file2, args.gab_only)
+                ori_train, ori_dev = train_test_split(ori, test_size=0.2, random_state=RANDOM_STATE)
 
-            elif args.mode == "shuffle":
-                X_train = preprocess(ori_concat_shuffled['text'].tolist())
-                Y_train = ori_concat_shuffled['label'].tolist()
+                X_dev = preprocess(ori_dev['text'].tolist())
+                Y_dev = ori_dev['label'].tolist()
+
+                # Concat two datasets, with 80% of original and 100% of Exist2021
+                ori_concat = pd.concat([ori_train, d2], axis=0)
+                ori_concat_shuffled = ori_concat.sample(frac=1)
+
+                # Checking if datasets are concatenated or shuffled
+                if args.mode == "concat":
+                    X_train = preprocess(ori_concat['text'].tolist())
+                    Y_train = ori_concat['label'].tolist()
+
+                elif args.mode == "shuffle":
+                    X_train = preprocess(ori_concat_shuffled['text'].tolist())
+                    Y_train = ori_concat_shuffled['label'].tolist()
 
     elif args.semeval:
         if args.easy:
