@@ -6,27 +6,30 @@ import re
 from nltk.corpus import stopwords
 import itertools
 
-from shifterator import shifts as rs
 from shifterator import shifts as ss
 
 stop_words = set(stopwords.words('english'))
 
-# data preprocessing
+
 def preprocess(text):
-  '''Removes hashtags and converts links to [URL] and usernames starting with @ to [USER],
-  it also converts emojis to their textual form.'''
-  documents = []
-  for instance in text:
-    instance = re.sub(r'@([^ ]*)', '[USER]', instance)
-    instance = re.sub(r'&amp', '[USER]', instance)
+    '''Removes hashtags and converts links to [URL]
+    and usernames starting with @ to [USER],
+    it also converts emojis to their textual form.'''
+    documents = []
+    for instance in text:
+        instance = re.sub(r'@([^ ]*)', '[USER]', instance)
+        instance = re.sub(r'&amp', '[USER]', instance)
 
-    instance = re.sub(r'((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*', '[URL]', instance)
-    instance = re.sub(r'[USER]', '', instance)
-    instance = re.sub(r'[URL]', '', instance)
-    instance = instance.replace('#', '')
-    documents.append(instance)
-  return documents
-
+        instance = re.sub(
+            r'((http|https)\:\/\/)?[a-zA-Z0-9\.\/\?\:@\-_=#]+'
+            r'\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#])*',
+            '[URL]',
+            instance)
+        instance = re.sub(r'[USER]', '', instance)
+        instance = re.sub(r'[URL]', '', instance)
+        instance = instance.replace('#', '')
+        documents.append(instance)
+    return documents
 
 
 def remove_punctuation(txt):
@@ -43,7 +46,11 @@ def remove_punctuation(txt):
     The same txt string with URLs and punctuation removed.
     """
 
-    return " ".join(re.sub("([^0-9A-Za-z \t])|(\w+:\/\/\S+)", "", txt).split())
+    return " ".join(
+        re.sub(
+            r"([^0-9A-Za-z \t])|(\w+:\/\/\S+)",
+            "",
+            txt).split())
 
 
 def remove_stopwords(txt):
@@ -63,7 +70,7 @@ def remove_stopwords(txt):
     tmp = [remove_punctuation(t) for t in txt]
     tmp = [t.lower().split() for t in tmp]
 
-    tmp = [[w for w in t if not w in stop_words]
+    tmp = [[w for w in t if w not in stop_words]
            for t in tmp]
 
     tmp = list(itertools.chain(*tmp))
@@ -74,7 +81,8 @@ def remove_stopwords(txt):
 
 df_original = pd.read_csv("train_all_tasks.csv")
 df_original = df_original[['text', 'label_sexist']]
-df_original.replace({'label_sexist': {'sexist': 1, 'not sexist': 0}}, inplace=True)
+df_original.replace(
+    {'label_sexist': {'sexist': 1, 'not sexist': 0}}, inplace=True)
 
 df_additional = pd.read_csv("EXIST2021_merged.csv")
 df_additional = df_additional[['text', 'sexist']]
@@ -86,11 +94,13 @@ clean_texts_original = remove_stopwords(clean_texts_original)
 clean_texts_additional = remove_stopwords(clean_texts_additional)
 
 
-
 jsd_shift = ss.JSDivergenceShift(type2freq_1=clean_texts_original,
-                                type2freq_2=clean_texts_additional,
-                                base=2,
-                                alpha=1)
-jsd_shift.get_shift_graph(system_names = ['SemEval2023', 'SemEval2023'],
-                          title='JSD Shift of SemEval2023 and EXIST2021 datasets')
+                                 type2freq_2=clean_texts_additional,
+                                 base=2,
+                                 alpha=1)
+jsd_shift.get_shift_graph(
+    system_names=[
+        'SemEval2023',
+        'SemEval2023'],
+    title='JSD Shift of SemEval2023 and EXIST2021 datasets')
 print(jsd_shift.diff)
