@@ -16,7 +16,7 @@
 This folder contains the code for the HateBERT and DeBERTa-v3-base models that were used for the project.
 All code makes use of Huggingface models and the Transformers package to import these models.
 
-***A requirements.txt file is provided within this folder for the purpose of running all models found within this folder.***
+***A requirements.txt file is provided within the root folder of this project.***
 
 ## 1.3. Data
 All code that was used for the testing can be acquired online.

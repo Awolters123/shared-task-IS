@@ -11,25 +11,6 @@ The systems are as follows:
   - `main models` The code for the main models (HateBERT and DeBERTa-v3-base) can be found in the root of this folder.
   - `Baselines` The code for the baselines can be found in this subfolder.
 
-[`Data Cartograph`](data%20cartography/README.md) and [`model testing`](model_testing/README.md) have their own README files for more specific further information about the code that is involved in these processes.
+[`Data Cartograph`](data%20cartography/) and [`model testing`](model_testing/) have their own README files for more specific further information about the code that is involved in these processes.
 
-`Requirements.txt` files can be found for each subpart within their respective folder.
-
-<!-- It contains two Jupyter notebook files containing all the work we (group 3) did for the baseline.
-The best model can be found in the *best_model.ipynb*, and the general decision process can be found in *Shared_task_IS.ipynb*.
-
-## Working with the Jupyter notebook files
-
-### Opening the files
-To make use of the Jupyter notebook file, it is recommended that a proper Jupyter notebook viewer is used, options include:
-- Jupyter notebook
-- Google colab
-- vscode
-
-### Checking the results
-For both aforementioned files (see [General Information](##-General-information)), outcomes have already been generated as part of the Jupyter notbooks. These results were used by the team as the final output.
-
-### Running The Code
-In case one wants to regenerate the outcomes of the Jupyter notebook (or make changes), one can simply *run all* code. More information about these features can be found in the guides for the specific tool that is being used.
-
-After this, the results should be the same as before (unless changes have been made). -->
+***A `Requirements.txt` file can be found within this folder for the required Python Packages***.
