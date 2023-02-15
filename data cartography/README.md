@@ -53,7 +53,7 @@ After retrieving the logit files for the different epochs, it will be necessary 
 
 ### 1.3.1. Requirements
 
-First, make sure that all requirments are fulfilled, as I ran into some issues with virtual environment installs, you may or may not run into issues. These are the requirements I used that did work:
+First, make sure that all requirements are fulfilled, as I ran into some issues with virtual environment installs, you may or may not run into issues. These are the requirements I used that did work:
 
 ```python
 transformers==4.24.0
