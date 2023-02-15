@@ -62,7 +62,7 @@ For Task B of EDOS, We tested three conditions for our tasks:
 These conditions were split over two versions of the same code:
 
 - `models.py` - Which was used mostly in conjunction with DeBERTa and the HPC cluster of the University of Groningen - Peregrine
-- `hatebert_taskB_AW.py` - This was used for HateBERT to run the models.
+- `hatebert_taskA_AW.py` & `hatebert_taskB_AW.py`- These were used for HateBERT to run the models.
 
 These models have the same origin but differ in their execution, related to the fact that both variants were run by two different people on two different systems - agility and easy change were paramount.
 
