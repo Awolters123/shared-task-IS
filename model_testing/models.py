@@ -49,11 +49,11 @@ def create_arg_parser():
 
     # Semeval data only
     parser.add_argument("--semeval", action="store_true",
-                        help="Run the model for task A, using the semeval dataset.")
+                        help="Run the model using the semeval dataset.")
 
     # Padding max length
     parser.add_argument("--max_len", action="store_true",
-                        help="Run the model using max padding length based on input.")
+                        help="Run the model using max sequence length based on input.")
 
     # Task A
     parser.add_argument("-d2", "--data_file2", default="data/EXIST2021_merged.csv", type=str,
