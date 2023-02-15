@@ -13,17 +13,17 @@
 
 
 ## 1.2. General information
-This folder contains the code for the HateBERT and DeBERTa-v3-base models that were used for the project.
+This folder contains the code for the [`DeBERTa-v3-base`](https://huggingface.co/microsoft/deberta-v3-base) and [`HateBERT`](https://huggingface.co/GroNLP/hateBERT) models that were used for the project.
 All code makes use of Huggingface models and the Transformers package to import these models.
 
-***A requirements.txt file is provided within the root folder of this project.***
+***A [`Requirements.txt`](../requirements.txt) file is provided within the root folder of this project.***
 
 ## 1.3. Data
 All code that was used for the testing can be acquired online.
 
 The following data was used for training and testing:
-- `The EDOS dataset`, taken from the shared task.
-- `The EXIST2021 dataset` was received by email by asking for it through the required form.
+- `The EDOS dataset`, taken from the [shared task](https://semeval.github.io/SemEval2023/) task 10.
+- `The EXIST2021 dataset` was received by email by asking for it through the required form on the [EXIST website](http://nlp.uned.es/exist2021/).
   - For our purposes, we `merged the train and test data` for this dataset and we only kept the `English examples`.
   - For Task B, we made use of the `data/TaskB_cosine_similarity.ipynb` to map the items to their corresponding variants in the EDOS dataset using `cosine similarity`.
 
@@ -37,7 +37,7 @@ The folder `baselines` contains two python notebooks:
 - `Shared_task_IS.ipynb` which contains the different baseline models that were tested to find the best starting point.
 
 ## 1.5. Main models
-The main models consist of DeBERTa-v3-base and HateBERT, which we finetuned and tested using the code found within this root folder.
+The main models consist of [`DeBERTa-v3-base`](https://huggingface.co/microsoft/deberta-v3-base) and [`HateBERT`](https://huggingface.co/GroNLP/hateBERT), which we finetuned and tested using the code found within this root folder.
 
 ### 1.5.1. Task A
 For Task A of EDOS, We tested three conditions for our tasks:

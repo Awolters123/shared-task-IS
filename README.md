@@ -1,5 +1,12 @@
 # SemEval 2023 - Task 10 - EDOS - Team Daunting
 
+**A couple of important notes**:
+- ***A [`Requirements.txt`](requirements.txt) file can be found within this folder for the required Python Packages.***
+- ***JSD requires a lower version of python than 3.10 (for example, 3.8.16)***
+- ***any other system here should also work with 3.10***
+
+## General Information
+
 This repository contains the code for `Team Daunting's` submission for [SemEval 2023 - Task 10 - Explainable Detection of Online Sexism (EDOS)](https://codalab.lisn.upsaclay.fr/competitions/7124).
 We took part in Tasks A and B for this shared task as part of a course `Shared Task Information Science` at the [University of Groningen](https://www.rug.nl/).
 
@@ -11,6 +18,4 @@ The systems are as follows:
   - `main models` The code for the main models (HateBERT and DeBERTa-v3-base) can be found in the root of this folder.
   - `Baselines` The code for the baselines can be found in this subfolder.
 
-[`Data Cartograph`](data%20cartography/) and [`model testing`](model_testing/) have their own README files for more specific further information about the code that is involved in these processes.
-
-***A `Requirements.txt` file can be found within this folder for the required Python Packages***.
+[`Data Cartography`](data%20cartography/) and [`model testing`](model_testing/) have their own README files for more specific further information about the code that is involved in these processes.
